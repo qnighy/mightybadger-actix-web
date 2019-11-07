@@ -1,4 +1,4 @@
-use futures::prelude::*;
+use futures01::prelude::*;
 
 use std::collections::HashMap;
 
@@ -7,7 +7,7 @@ use actix_web::http::{HeaderMap, StatusCode, Uri};
 use failure::Fail;
 use mightybadger::payload::RequestInfo;
 
-use futures::future::{self, FutureResult};
+use futures01::future::{self, FutureResult};
 
 #[derive(Debug)]
 pub struct HoneybadgerMiddleware(());
