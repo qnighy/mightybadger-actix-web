@@ -1,13 +1,16 @@
-use futures01::prelude::*;
+use futures::prelude::*;
 
 use std::collections::HashMap;
+use std::pin::Pin;
 
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::http::{HeaderMap, StatusCode, Uri};
 use failure::Fail;
 use mightybadger::payload::RequestInfo;
+use pin_project::pin_project;
 
-use futures01::future::{self, FutureResult};
+use futures::future::{self, Ready};
+use futures::task::{Context, Poll};
 
 #[derive(Debug)]
 pub struct HoneybadgerMiddleware(());
@@ -31,10 +34,10 @@ where
     type Error = actix_web::Error;
     type Transform = HoneybadgerHandler<S>;
     type InitError = ();
-    type Future = FutureResult<HoneybadgerHandler<S>, ()>;
+    type Future = Ready<Result<HoneybadgerHandler<S>, ()>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        future::ok(HoneybadgerHandler(service))
+        future::ready(Ok(HoneybadgerHandler(service)))
     }
 }
 
@@ -50,8 +53,8 @@ where
     type Error = actix_web::Error;
     type Future = HoneybadgerHandlerFuture<S::Future>;
 
-    fn poll_ready(&mut self) -> Result<Async<()>, Self::Error> {
-        Ok(Async::Ready(()))
+    fn poll_ready(&mut self, _ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, req: Self::Request) -> Self::Future {
@@ -65,46 +68,49 @@ where
         };
         HoneybadgerHandlerFuture {
             inner: self.0.call(req),
-            uri,
-            headers,
+            reporter: Reporter { uri, headers },
+        }
+    }
+}
+
+#[pin_project]
+#[derive(Debug)]
+pub struct HoneybadgerHandlerFuture<F> {
+    #[pin]
+    inner: F,
+    reporter: Reporter,
+}
+
+impl<F> Future for HoneybadgerHandlerFuture<F>
+where
+    F: Future<Output = Result<ServiceResponse, actix_web::Error>>,
+{
+    type Output = Result<ServiceResponse, actix_web::Error>;
+
+    fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        match this.inner.poll(ctx) {
+            Poll::Ready(Ok(resp)) => {
+                this.reporter.report(Ok(&resp));
+                Poll::Ready(Ok(resp))
+            }
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(e)) => {
+                this.reporter.report(Err(&e));
+                Poll::Ready(Err(e))
+            }
         }
     }
 }
 
 #[derive(Debug)]
-pub struct HoneybadgerHandlerFuture<F> {
-    inner: F,
+struct Reporter {
     uri: Uri,
     headers: HeaderMap,
 }
 
-impl<F> Future for HoneybadgerHandlerFuture<F>
-where
-    F: Future<Item = ServiceResponse, Error = actix_web::Error>,
-{
-    type Item = ServiceResponse;
-    type Error = actix_web::Error;
-
-    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
-        match self.inner.poll() {
-            Ok(Async::Ready(resp)) => {
-                self.report(Ok(&resp));
-                Ok(Async::Ready(resp))
-            }
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => {
-                self.report(Err(&e));
-                Err(e)
-            }
-        }
-    }
-}
-
-impl<F> HoneybadgerHandlerFuture<F>
-where
-    F: Future<Item = ServiceResponse, Error = actix_web::Error>,
-{
-    fn report(&self, resp: Result<&ServiceResponse, &F::Error>) {
+impl Reporter {
+    fn report(&self, resp: Result<&ServiceResponse, &actix_web::Error>) {
         let status = match resp {
             Ok(resp) => resp.status(),
             Err(e) => e.as_response_error().error_response().status(),
