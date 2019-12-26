@@ -3,11 +3,11 @@ use actix_web::{web, App, HttpServer, Responder};
 use failure::{Backtrace, Fail};
 use mightybadger_actix_web::HoneybadgerMiddleware;
 
-fn index(_: web::Path<()>) -> impl Responder {
+async fn index(_: web::Path<()>) -> impl Responder {
     "Hello, world!"
 }
 
-fn ping(_: web::Path<()>) -> impl Responder {
+async fn ping(_: web::Path<()>) -> impl Responder {
     "pong"
 }
 
@@ -17,7 +17,7 @@ struct MyError(#[cause] std::io::Error, Backtrace);
 
 impl ResponseError for MyError {}
 
-fn error(_: web::Path<()>) -> actix_web::error::Result<String> {
+async fn error(_: web::Path<()>) -> actix_web::error::Result<String> {
     use std::io::Read;
     let mut f = std::fs::File::open("quux.quux").map_err(|e| MyError(e, Backtrace::new()))?;
     let mut contents = String::new();
@@ -26,11 +26,12 @@ fn error(_: web::Path<()>) -> actix_web::error::Result<String> {
     Ok(contents)
 }
 
-fn error_panic(_: web::Path<()>) -> &'static str {
+async fn error_panic(_: web::Path<()>) -> &'static str {
     panic!("/error_panic is requested");
 }
 
-fn main() {
+#[actix_rt::main]
+async fn main() {
     mightybadger::setup();
 
     HttpServer::new(|| {
@@ -44,5 +45,6 @@ fn main() {
     .bind("localhost:7878")
     .expect("bind failed")
     .run()
+    .await
     .unwrap();
 }
