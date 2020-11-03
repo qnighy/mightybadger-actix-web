@@ -13,7 +13,7 @@ categories = ["web-programming", "api-bindings", "development-tools"]
 license = "MIT"
 
 [dependencies]
-pin-project = "1.0.0"
+pin-project = "1.0.1"
 futures = "0.3.7"
 actix-web = { version = "3.0.0", default-features = false }
 mightybadger = { git = "https://github.com/qnighy/mightybadger-rs.git", rev = "98a67e7" }
