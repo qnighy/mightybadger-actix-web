@@ -16,7 +16,7 @@ license = "MIT"
 pin-project = "1.0.1"
 futures = "0.3.7"
 actix-web = { version = "3.3.0", default-features = false }
-mightybadger = { git = "https://github.com/qnighy/mightybadger-rs.git", rev = "98a67e7" }
+mightybadger = { git = "https://github.com/qnighy/mightybadger-rs.git", rev = "36157ad" }
 failure = "0.1.5"
 serde_urlencoded = "0.7.0"
 
