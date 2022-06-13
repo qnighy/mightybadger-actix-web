@@ -15,11 +15,11 @@ license = "MIT"
 [dependencies]
 pin-project = "1.0.1"
 futures = "0.3.7"
-actix-web = { version = "3.3.0", default-features = false }
+actix-web = { version = "4.1.0", default-features = false }
 mightybadger = { git = "https://github.com/qnighy/mightybadger-rs.git", rev = "36157ad" }
 failure = "0.1.5"
 serde_urlencoded = "0.7.0"
 
 [dev-dependencies]
 actix-rt = "1.1.1"
-actix-web = { version = "3.3.0", default-features = true }
+actix-web = { version = "4.1.0", default-features = true }
